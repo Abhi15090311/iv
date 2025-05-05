@@ -45,4 +45,6 @@ d3.csv("data.csv").then(data => {
     .attr("width", x.bandwidth())
     .attr("height", d => height - y(d.Revenue))
     .attr("fill", "#00d8ff");
+}).catch(error => {
+  console.error("Error loading the CSV file:", error);
 });
