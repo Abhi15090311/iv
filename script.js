@@ -3,7 +3,7 @@ d3.csv("data.csv").then(data => {
     d.Revenue = +d.Revenue;
   });
 
-  const margin = { top: 30, right: 30, bottom: 100, left: 100 },
+  const margin = { top: 40, right: 30, bottom: 120, left: 100 },
         width = 900 - margin.left - margin.right,
         height = 500 - margin.top - margin.bottom;
 
@@ -24,7 +24,9 @@ d3.csv("data.csv").then(data => {
     .range([height, 0]);
 
   svg.append("g")
-    .call(d3.axisLeft(y));
+    .call(d3.axisLeft(y).tickFormat(d3.format("$.2s")).ticks(5))
+    .selectAll("text")
+    .style("fill", "#fff");
 
   svg.append("g")
     .attr("transform", `translate(0,${height})`)
@@ -32,7 +34,7 @@ d3.csv("data.csv").then(data => {
     .selectAll("text")
     .attr("transform", "rotate(-45)")
     .style("text-anchor", "end")
-    .style("fill", "white");
+    .style("fill", "#fff");
 
   svg.selectAll("rect")
     .data(data)
