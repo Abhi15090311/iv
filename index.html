@@ -1,28 +1,270 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <title>Film Dashboard</title>
   <script src="https://d3js.org/d3.v7.min.js"></script>
-  <link rel="stylesheet" href="style.css" />
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #111;
+      color: white;
+      margin: 20px;
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    select {
+      margin: 0 10px;
+      background: #222;
+      color: white;
+      border: 1px solid #999;
+    }
+    .filter {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .charts {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-around;
+    }
+    .chart {
+      width: 30%;
+      height: 400px;
+      background: #222;
+      margin-bottom: 20px;
+      border-radius: 8px;
+      padding: 10px;
+    }
+    #tooltip {
+      position: absolute;
+      padding: 8px;
+      background: rgba(0,0,0,0.8);
+      color: white;
+      border-radius: 4px;
+      pointer-events: none;
+      opacity: 0;
+    }
+    .no-data {
+      text-align: center;
+      padding: 50px;
+      color: gray;
+    }
+  </style>
 </head>
 <body>
+
   <div class="header">
-    <h1>🎬 Film Dashboard</h1>
-    <p>Film revenue breakdown by title and genre</p>
+    <h1>Film Data Dashboard</h1>
   </div>
 
-  <div class="chart-row">
-    <div class="chart" id="barChartContainer">
-      <h2>Revenue by Title</h2>
-      <svg id="barChart"></svg>
-    </div>
-    <div class="chart" id="pieChartContainer">
-      <h2>Genre Distribution</h2>
-      <svg id="pieChart"></svg>
-    </div>
+  <div class="filter">
+    <label>Genre:</label>
+    <select id="genreFilter"><option value="All">All</option></select>
+    <label>Language:</label>
+    <select id="languageFilter"><option value="All">All</option></select>
+    <button onclick="resetFilters()">Reset Filters</button>
   </div>
 
-  <script src="script.js"></script>
+  <div class="charts">
+    <div id="barChart" class="chart"></div>
+    <div id="pieChart" class="chart"></div>
+    <div id="boxPlot" class="chart"></div>
+  </div>
+
+  <div id="tooltip"></div>
+
+  <script>
+    let filmData;
+    const tooltip = d3.select("#tooltip");
+
+    d3.csv("film_dataset.csv").then(raw => {
+      filmData = raw.map(d => ({
+        ...d,
+        Revenue: +d.Revenue,
+        Rating: +d.Rating,
+        Year: +d.Year
+      }));
+      initFilters();
+      updateVisuals();
+    });
+
+    function initFilters() {
+      let genres = Array.from(new Set(filmData.map(d => d.Genre)));
+      genres.forEach(g => d3.select("#genreFilter").append("option").attr("value", g).text(g));
+
+      let langs = Array.from(new Set(filmData.map(d => d.Language)));
+      langs.forEach(l => d3.select("#languageFilter").append("option").attr("value", l).text(l));
+
+      d3.selectAll("select").on("change", updateVisuals);
+    }
+
+    function resetFilters() {
+      d3.select("#genreFilter").property("value", "All");
+      d3.select("#languageFilter").property("value", "All");
+      updateVisuals();
+    }
+
+    function filterData() {
+      let genre = d3.select("#genreFilter").property("value");
+      let lang = d3.select("#languageFilter").property("value");
+      return filmData.filter(d =>
+        (genre === "All" || d.Genre === genre) &&
+        (lang === "All" || d.Language === lang)
+      );
+    }
+
+    function showNoData(id) {
+      d3.select("#" + id).html('<div class="no-data">No data available</div>');
+    }
+
+    function updateVisuals() {
+      let filtered = filterData();
+      drawBarChart(filtered);
+      drawPieChart(filtered);
+      drawBoxPlot(filtered);
+    }
+
+    function drawBarChart(data) {
+      const id = "barChart";
+      d3.select("#" + id).html("");
+      if (data.length === 0) return showNoData(id);
+
+      const svg = d3.select("#" + id).append("svg").attr("width", "100%").attr("height", 400),
+            margin = {top: 20, right: 20, bottom: 50, left: 60},
+            width = parseInt(svg.style("width")) - margin.left - margin.right,
+            height = 400 - margin.top - margin.bottom;
+
+      const g = svg.append("g").attr("transform", translate(${margin.left},${margin.top}));
+
+      const avgRevenue = d3.rollup(data, v => d3.mean(v, d => d.Revenue), d => d.Genre);
+      const entries = Array.from(avgRevenue).sort((a, b) => b[1] - a[1]);
+
+      const x = d3.scaleLinear().domain([0, d3.max(entries, d => d[1])]).range([0, width]);
+      const y = d3.scaleBand().domain(entries.map(d => d[0])).range([0, height]).padding(0.2);
+
+      g.selectAll("rect")
+        .data(entries)
+        .join("rect")
+        .attr("y", d => y(d[0]))
+        .attr("width", d => x(d[1]))
+        .attr("height", y.bandwidth())
+        .attr("fill", "#4FC3F7")
+        .on("mouseover", (event, d) => {
+          tooltip.style("opacity", 1).html(<b>Genre:</b> ${d[0]}<br><b>Avg Revenue:</b> $${d[1].toFixed(2)});
+        })
+        .on("mousemove", event => tooltip.style("left", event.pageX + 10 + "px").style("top", event.pageY - 28 + "px"))
+        .on("mouseout", () => tooltip.style("opacity", 0));
+
+      g.append("g").call(d3.axisLeft(y));
+      g.append("g").attr("transform", translate(0,${height})).call(d3.axisBottom(x));
+    }
+
+    function drawPieChart(data) {
+      const id = "pieChart";
+      d3.select("#" + id).html("");
+      if (data.length === 0) return showNoData(id);
+
+      const svg = d3.select("#" + id).append("svg").attr("width", "100%").attr("height", 400);
+      const width = parseInt(svg.style("width"));
+      const height = 400;
+      const radius = Math.min(width, height) / 2 - 20;
+
+      const g = svg.append("g").attr("transform", translate(${width / 2},${height / 2}));
+
+      const counts = d3.rollup(data, v => v.length, d => d.Language);
+      const pie = d3.pie().value(d => d[1])(Array.from(counts));
+      const arc = d3.arc().innerRadius(0).outerRadius(radius);
+      const color = d3.scaleOrdinal().domain(Array.from(counts.keys())).range(d3.schemeSet2);
+
+      g.selectAll("path")
+        .data(pie)
+        .join("path")
+        .attr("d", arc)
+        .attr("fill", d => color(d.data[0]))
+        .on("mouseover", (event, d) => {
+          tooltip.style("opacity", 1).html(<b>Language:</b> ${d.data[0]}<br><b>Count:</b> ${d.data[1]});
+        })
+        .on("mousemove", event => tooltip.style("left", event.pageX + 10 + "px").style("top", event.pageY - 28 + "px"))
+        .on("mouseout", () => tooltip.style("opacity", 0));
+    }
+
+    function drawBoxPlot(data) {
+      const id = "boxPlot";
+      d3.select("#" + id).html("");
+      if (data.length === 0) return showNoData(id);
+
+      const svg = d3.select("#" + id).append("svg").attr("width", "100%").attr("height", 400),
+            margin = {top: 20, right: 20, bottom: 50, left: 50},
+            width = parseInt(svg.style("width")) - margin.left - margin.right,
+            height = 400 - margin.top - margin.bottom;
+
+      const g = svg.append("g").attr("transform", translate(${margin.left},${margin.top}));
+
+      const grouped = d3.groups(data, d => d.Genre);
+      const x = d3.scaleBand().domain(grouped.map(d => d[0])).range([0, width]).padding(0.3);
+      const y = d3.scaleLinear().domain([0, d3.max(data, d => d.Rating)]).nice().range([height, 0]);
+
+      g.append("g").attr("transform", translate(0,${height})).call(d3.axisBottom(x));
+      g.append("g").call(d3.axisLeft(y));
+
+      grouped.forEach(([genre, vals]) => {
+        const ratings = vals.map(d => d.Rating).sort(d3.ascending);
+        const q1 = d3.quantile(ratings, 0.25);
+        const med = d3.quantile(ratings, 0.5);
+        const q3 = d3.quantile(ratings, 0.75);
+        const iqr = q3 - q1;
+        const min = Math.max(d3.min(ratings), q1 - 1.5 * iqr);
+        const max = Math.min(d3.max(ratings), q3 + 1.5 * iqr);
+
+        const bw = x.bandwidth();
+
+        g.append("rect")
+          .attr("x", x(genre))
+          .attr("y", y(q3))
+          .attr("width", bw)
+          .attr("height", y(q1) - y(q3))
+          .attr("fill", "#4CAF50");
+
+        g.append("line")
+          .attr("x1", x(genre))
+          .attr("x2", x(genre) + bw)
+          .attr("y1", y(med))
+          .attr("y2", y(med))
+          .attr("stroke", "orange")
+          .attr("stroke-width", 2);
+
+        g.append("line")
+          .attr("x1", x(genre) + bw / 2)
+          .attr("x2", x(genre) + bw / 2)
+          .attr("y1", y(min))
+          .attr("y2", y(q1))
+          .attr("stroke", "#FF7043");
+
+        g.append("line")
+          .attr("x1", x(genre) + bw / 2)
+          .attr("x2", x(genre) + bw / 2)
+          .attr("y1", y(max))
+          .attr("y2", y(q3))
+          .attr("stroke", "#FF7043");
+
+        const outliers = vals.filter(d => d.Rating < min || d.Rating > max);
+        g.selectAll(.outlier-${genre})
+          .data(outliers)
+          .join("circle")
+          .attr("cx", x(genre) + bw / 2)
+          .attr("cy", d => y(d.Rating))
+          .attr("r", 4)
+          .attr("fill", "red")
+          .on("mouseover", (event, d) => {
+            tooltip.style("opacity", 1).html(<b>Rating:</b> ${d.Rating.toFixed(1)}<br><b>Title:</b> ${d.Title});
+          })
+          .on("mousemove", event => tooltip.style("left", event.pageX + 10 + "px").style("top", event.pageY - 28 + "px"))
+          .on("mouseout", () => tooltip.style("opacity", 0));
+      });
+    }
+  </script>
 </body>
 </html>
