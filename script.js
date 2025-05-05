@@ -3,48 +3,71 @@ d3.csv("data.csv").then(data => {
     d.Revenue = +d.Revenue;
   });
 
-  const margin = { top: 40, right: 30, bottom: 120, left: 100 },
-        width = 900 - margin.left - margin.right,
-        height = 500 - margin.top - margin.bottom;
+  // Bar chart
+  const barSvg = d3.select("#barChart");
+  const barMargin = { top: 30, right: 20, bottom: 100, left: 80 },
+        barWidth = 400 - barMargin.left - barMargin.right,
+        barHeight = 400 - barMargin.top - barMargin.bottom;
 
-  const svg = d3.select("#barChart")
-    .attr("width", width + margin.left + margin.right)
-    .attr("height", height + margin.top + margin.bottom)
-    .append("g")
-    .attr("transform", `translate(${margin.left},${margin.top})`);
+  const barGroup = barSvg.append("g")
+    .attr("transform", `translate(${barMargin.left},${barMargin.top})`);
 
   const x = d3.scaleBand()
     .domain(data.map(d => d.Title))
-    .range([0, width])
+    .range([0, barWidth])
     .padding(0.3);
 
   const y = d3.scaleLinear()
     .domain([0, d3.max(data, d => d.Revenue)])
     .nice()
-    .range([height, 0]);
+    .range([barHeight, 0]);
 
-  svg.append("g")
-    .call(d3.axisLeft(y).tickFormat(d3.format("$.2s")).ticks(5))
-    .selectAll("text")
-    .style("fill", "#fff");
+  barGroup.append("g")
+    .call(d3.axisLeft(y).tickFormat(d3.format("$.2s")));
 
-  svg.append("g")
-    .attr("transform", `translate(0,${height})`)
+  barGroup.append("g")
+    .attr("transform", `translate(0,${barHeight})`)
     .call(d3.axisBottom(x))
     .selectAll("text")
     .attr("transform", "rotate(-45)")
     .style("text-anchor", "end")
     .style("fill", "#fff");
 
-  svg.selectAll("rect")
+  barGroup.selectAll("rect")
     .data(data)
     .enter()
     .append("rect")
     .attr("x", d => x(d.Title))
     .attr("y", d => y(d.Revenue))
     .attr("width", x.bandwidth())
-    .attr("height", d => height - y(d.Revenue))
+    .attr("height", d => barHeight - y(d.Revenue))
     .attr("fill", "#00d8ff");
-}).catch(error => {
-  console.error("Error loading the CSV file:", error);
+
+  // Pie chart (Genre distribution)
+  const genreCounts = d3.rollups(data, v => v.length, d => d.Genre);
+  const pie = d3.pie().value(d => d[1])(genreCounts);
+  const arc = d3.arc().innerRadius(0).outerRadius(150);
+  const pieSvg = d3.select("#pieChart")
+    .append("g")
+    .attr("transform", "translate(200,200)");
+
+  const color = d3.scaleOrdinal()
+    .domain(genreCounts.map(d => d[0]))
+    .range(d3.schemeSet2);
+
+  pieSvg.selectAll("path")
+    .data(pie)
+    .join("path")
+    .attr("d", arc)
+    .attr("fill", d => color(d.data[0]));
+
+  pieSvg.selectAll("text")
+    .data(pie)
+    .enter()
+    .append("text")
+    .text(d => d.data[0])
+    .attr("transform", d => `translate(${arc.centroid(d)})`)
+    .style("fill", "white")
+    .style("font-size", "12px")
+    .style("text-anchor", "middle");
 });
