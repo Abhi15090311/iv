@@ -2,19 +2,27 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Film Data Dashboard</title>
-  <link rel="stylesheet" href="style.css" />
+  <title>Film Dashboard</title>
   <script src="https://d3js.org/d3.v7.min.js"></script>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <div class="header">
-    <h1>🎬 Film Data Dashboard</h1>
-    <p>Explore film revenue with D3.js</p>
+    <h1>🎬 Film Dashboard</h1>
+    <p>Film revenue breakdown by title and genre</p>
   </div>
 
-  <div id="chart-container">
-    <svg id="barChart"></svg>
+  <div class="chart-row">
+    <div class="chart" id="barChartContainer">
+      <h2>Revenue by Title</h2>
+      <svg id="barChart"></svg>
+    </div>
+    <div class="chart" id="pieChartContainer">
+      <h2>Genre Distribution</h2>
+      <svg id="pieChart"></svg>
+    </div>
   </div>
 
-  <script src="script.js"></scrip
+  <script src="script.js"></script>
+</body>
+</html>
