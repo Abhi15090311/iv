@@ -137,7 +137,7 @@
             width = parseInt(svg.style("width")) - margin.left - margin.right,
             height = 400 - margin.top - margin.bottom;
 
-      const g = svg.append("g").attr("transform", translate(${margin.left},${margin.top}));
+      const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
 
       const avgRevenue = d3.rollup(data, v => d3.mean(v, d => d.Revenue), d => d.Genre);
       const entries = Array.from(avgRevenue).sort((a, b) => b[1] - a[1]);
@@ -153,13 +153,13 @@
         .attr("height", y.bandwidth())
         .attr("fill", "#4FC3F7")
         .on("mouseover", (event, d) => {
-          tooltip.style("opacity", 1).html(<b>Genre:</b> ${d[0]}<br><b>Avg Revenue:</b> $${d[1].toFixed(2)});
+          tooltip.style("opacity", 1).html(`<b>Genre:</b> ${d[0]}<br><b>Avg Revenue:</b> $${d[1].toFixed(2)}`);
         })
         .on("mousemove", event => tooltip.style("left", event.pageX + 10 + "px").style("top", event.pageY - 28 + "px"))
         .on("mouseout", () => tooltip.style("opacity", 0));
 
       g.append("g").call(d3.axisLeft(y));
-      g.append("g").attr("transform", translate(0,${height})).call(d3.axisBottom(x));
+      g.append("g").attr("transform", `translate(0,${height})`).call(d3.axisBottom(x));
     }
 
     function drawPieChart(data) {
@@ -172,7 +172,7 @@
       const height = 400;
       const radius = Math.min(width, height) / 2 - 20;
 
-      const g = svg.append("g").attr("transform", translate(${width / 2},${height / 2}));
+      const g = svg.append("g").attr("transform", `translate(${width / 2},${height / 2})`);
 
       const counts = d3.rollup(data, v => v.length, d => d.Language);
       const pie = d3.pie().value(d => d[1])(Array.from(counts));
@@ -185,7 +185,7 @@
         .attr("d", arc)
         .attr("fill", d => color(d.data[0]))
         .on("mouseover", (event, d) => {
-          tooltip.style("opacity", 1).html(<b>Language:</b> ${d.data[0]}<br><b>Count:</b> ${d.data[1]});
+          tooltip.style("opacity", 1).html(`<b>Language:</b> ${d.data[0]}<br><b>Count:</b> ${d.data[1]}`);
         })
         .on("mousemove", event => tooltip.style("left", event.pageX + 10 + "px").style("top", event.pageY - 28 + "px"))
         .on("mouseout", () => tooltip.style("opacity", 0));
@@ -201,13 +201,13 @@
             width = parseInt(svg.style("width")) - margin.left - margin.right,
             height = 400 - margin.top - margin.bottom;
 
-      const g = svg.append("g").attr("transform", translate(${margin.left},${margin.top}));
+      const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
 
       const grouped = d3.groups(data, d => d.Genre);
       const x = d3.scaleBand().domain(grouped.map(d => d[0])).range([0, width]).padding(0.3);
       const y = d3.scaleLinear().domain([0, d3.max(data, d => d.Rating)]).nice().range([height, 0]);
 
-      g.append("g").attr("transform", translate(0,${height})).call(d3.axisBottom(x));
+      g.append("g").attr("transform", `translate(0,${height})`).call(d3.axisBottom(x));
       g.append("g").call(d3.axisLeft(y));
 
       grouped.forEach(([genre, vals]) => {
@@ -251,7 +251,7 @@
           .attr("stroke", "#FF7043");
 
         const outliers = vals.filter(d => d.Rating < min || d.Rating > max);
-        g.selectAll(.outlier-${genre})
+        g.selectAll(`.outlier-${genre}`)
           .data(outliers)
           .join("circle")
           .attr("cx", x(genre) + bw / 2)
@@ -259,7 +259,7 @@
           .attr("r", 4)
           .attr("fill", "red")
           .on("mouseover", (event, d) => {
-            tooltip.style("opacity", 1).html(<b>Rating:</b> ${d.Rating.toFixed(1)}<br><b>Title:</b> ${d.Title});
+            tooltip.style("opacity", 1).html(`<b>Rating:</b> ${d.Rating.toFixed(1)}<br><b>Title:</b> ${d.Title}`);
           })
           .on("mousemove", event => tooltip.style("left", event.pageX + 10 + "px").style("top", event.pageY - 28 + "px"))
           .on("mouseout", () => tooltip.style("opacity", 0));
