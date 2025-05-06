@@ -2,21 +2,157 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Film Dashboard</title>
-  <link rel="stylesheet" href="style.css" />
+  <title>Grocery Store Survey Dashboard</title>
   <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    body {
+      background-color: #111;
+      color: white;
+      font-family: Arial, sans-serif;
+      padding: 20px;
+    }
+    h1, h2 {
+      text-align: center;
+    }
+    .chart-container {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-around;
+      margin-top: 20px;
+    }
+    .chart {
+      margin: 20px;
+      background: #222;
+      padding: 20px;
+      border-radius: 10px;
+    }
+    svg {
+      background-color: #1a1a1a;
+      border-radius: 8px;
+    }
+    select {
+      display: block;
+      margin: 20px auto;
+      background-color: #000;
+      color: white;
+      padding: 5px 10px;
+      border: 1px solid gray;
+    }
+  </style>
 </head>
 <body>
-  <div class="header">
-    <h1>🎬 Film Data Dashboard</h1>
-    <p>Interactive chart of film ratings and revenue</p>
+
+  <h1>Grocery Store Survey Dashboard</h1>
+
+  <label for="chainSelect">Filter by Store Chain:</label>
+  <select id="chainSelect">
+    <option value="All">All</option>
+  </select>
+
+  <div class="chart-container">
+    <div class="chart" id="barChart">
+      <h2>Average Purchase by Chain</h2>
+      <svg width="400" height="300"></svg>
+    </div>
+    <div class="chart" id="pieChart">
+      <h2>Gender Distribution</h2>
+      <svg width="300" height="300"></svg>
+    </div>
+    <div class="chart" id="boxPlot">
+      <h2>Income by Occupation</h2>
+      <svg width="500" height="300"></svg>
+    </div>
   </div>
 
-  <div id="chart-container">
-    <svg id="barChart"></svg>
-  </div>
+  <script>
+    d3.json("sample_grocery_data.json").then(data => {
+      const allChains = Array.from(new Set(data.map(d => d.Chain)));
+      allChains.forEach(chain => {
+        d3.select("#chainSelect").append("option").text(chain).attr("value", chain);
+      });
 
-  <script src="script.js"></script>
+      function updateDashboard(selectedChain) {
+        const filtered = selectedChain === "All" ? data : data.filter(d => d.Chain === selectedChain);
+
+        // === BAR CHART ===
+        const avgByChain = d3.rollups(filtered, v => d3.mean(v, d => d.PurchaseAmount), d => d.Chain);
+        const svgBar = d3.select("#barChart svg");
+        svgBar.selectAll("*").remove();
+        const margin = {top: 20, right: 10, bottom: 40, left: 50},
+              width = +svgBar.attr("width") - margin.left - margin.right,
+              height = +svgBar.attr("height") - margin.top - margin.bottom;
+
+        const x = d3.scaleBand().domain(avgByChain.map(d => d[0])).range([0, width]).padding(0.3);
+        const y = d3.scaleLinear().domain([0, d3.max(avgByChain, d => d[1])]).nice().range([height, 0]);
+
+        const g = svgBar.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+        g.append("g").call(d3.axisLeft(y)).selectAll("text").attr("fill", "white");
+        g.append("g").attr("transform", `translate(0,${height})`)
+          .call(d3.axisBottom(x)).selectAll("text").attr("fill", "white");
+
+        g.selectAll("rect")
+          .data(avgByChain)
+          .enter().append("rect")
+          .attr("x", d => x(d[0]))
+          .attr("y", d => y(d[1]))
+          .attr("width", x.bandwidth())
+          .attr("height", d => height - y(d[1]))
+          .attr("fill", "steelblue");
+
+        // === PIE CHART ===
+        const svgPie = d3.select("#pieChart svg");
+        svgPie.selectAll("*").remove();
+        const pieData = d3.rollups(filtered, v => v.length, d => d.Gender);
+        const pie = d3.pie().value(d => d[1]);
+        const arc = d3.arc().innerRadius(0).outerRadius(120);
+        const color = d3.scaleOrdinal().domain(pieData.map(d => d[0])).range(d3.schemeSet2);
+        const pieGroup = svgPie.append("g").attr("transform", "translate(150,150)");
+
+        pieGroup.selectAll("path")
+          .data(pie(pieData))
+          .enter().append("path")
+          .attr("d", arc)
+          .attr("fill", d => color(d.data[0]))
+          .append("title").text(d => `${d.data[0]}: ${d.data[1]}`);
+
+        // === BOX PLOT ===
+        const svgBox = d3.select("#boxPlot svg");
+        svgBox.selectAll("*").remove();
+        const occupations = Array.from(d3.group(filtered, d => d.Occupation).entries());
+        const incomeStats = occupations.map(([occ, values]) => {
+          const incomes = values.map(d => d.Income).sort(d3.ascending);
+          const q1 = d3.quantile(incomes, 0.25);
+          const median = d3.quantile(incomes, 0.5);
+          const q3 = d3.quantile(incomes, 0.75);
+          const min = d3.min(incomes);
+          const max = d3.max(incomes);
+          return { occ, q1, median, q3, min, max };
+        });
+
+        const xBox = d3.scaleBand().domain(incomeStats.map(d => d.occ)).range([40, 460]).padding(0.5);
+        const yBox = d3.scaleLinear().domain([0, d3.max(incomeStats, d => d.max)]).nice().range([250, 20]);
+
+        svgBox.append("g").attr("transform", "translate(0,250)").call(d3.axisBottom(xBox)).selectAll("text").attr("fill", "white");
+        svgBox.append("g").attr("transform", "translate(40,0)").call(d3.axisLeft(yBox)).selectAll("text").attr("fill", "white");
+
+        svgBox.selectAll("g.box")
+          .data(incomeStats)
+          .enter().append("g")
+          .attr("class", "box")
+          .attr("transform", d => `translate(${xBox(d.occ)},0)`)
+          .each(function(d) {
+            const g = d3.select(this);
+            g.append("line").attr("y1", yBox(d.min)).attr("y2", yBox(d.max)).attr("x1", 10).attr("x2", 10).attr("stroke", "white");
+            g.append("rect").attr("y", yBox(d.q3)).attr("height", yBox(d.q1) - yBox(d.q3)).attr("width", 20).attr("x", 0).attr("fill", "orange");
+            g.append("line").attr("y1", yBox(d.median)).attr("y2", yBox(d.median)).attr("x1", 0).attr("x2", 20).attr("stroke", "black");
+          });
+      }
+
+      updateDashboard("All");
+      d3.select("#chainSelect").on("change", function () {
+        updateDashboard(this.value);
+      });
+    });
+  </script>
 </body>
 </html>
